@@ -232,6 +232,12 @@ if __name__ == '__main__':
     print(f"[INFO] Starting Server Monitoring Agent on {host}:{port}")
     print(f"[INFO] SSE Endpoint: http://{host}:{port}/stream")
     print(f"[INFO] Health Check: http://{host}:{port}/health")
+    print(f"[INFO] API Token: {API_TOKEN}")
+    print("")
+    print("═══════════════════════════════════════════════════════════")
+    print(f"  YOUR API TOKEN: {API_TOKEN}")
+    print("═══════════════════════════════════════════════════════════")
+    print("")
 
     # Run Flask app (debug=False for production)
     app.run(host=host, port=port, debug=False, threaded=True)
