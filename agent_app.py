@@ -15,6 +15,8 @@ from flask import Flask, Response, jsonify, request, make_response
 from dotenv import load_dotenv
 import psutil
 import json
+import platform
+import subprocess
 
 # Load environment variables from .env file
 load_dotenv()
@@ -217,6 +219,63 @@ def health_check():
         'status': 'healthy',
         'service': 'server-monitoring-agent'
     }), 200
+
+
+def get_gpu_info():
+    """Attempt to get basic GPU info using lspci or wmic."""
+    gpus = []
+    try:
+        system = platform.system()
+        if system == "Windows":
+            result = subprocess.check_output(
+                ["wmic", "path", "win32_VideoController", "get", "name"], 
+                text=True, stderr=subprocess.DEVNULL
+            )
+            lines = [line.strip() for line in result.split('\n') if line.strip()]
+            if len(lines) > 1:
+                gpus.extend(lines[1:])
+        elif system == "Linux":
+            result = subprocess.check_output(
+                ["lspci"], 
+                text=True, stderr=subprocess.DEVNULL
+            )
+            for line in result.split('\n'):
+                if "VGA compatible controller" in line or "3D controller" in line:
+                    gpus.append(line.split(":")[-1].strip())
+    except Exception:
+        pass
+    return gpus if gpus else ["Unknown GPU or not detected"]
+
+@app.route('/api/specs', methods=['GET', 'OPTIONS'])
+def get_specs():
+    """Returns static hardware specifications of the server."""
+    if request.method == 'OPTIONS':
+        res = make_response('', 204)
+        res.headers['Access-Control-Allow-Origin'] = '*'
+        res.headers['Access-Control-Allow-Methods'] = '*'
+        res.headers['Access-Control-Allow-Headers'] = '*'
+        return res
+
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+
+    specs = {
+        'hostname': platform.node(),
+        'os': f"{platform.system()} {platform.release()} ({platform.machine()})",
+        'cpu': {
+            'model': platform.processor() or "Unknown CPU",
+            'cores': psutil.cpu_count(logical=False),
+            'threads': psutil.cpu_count(logical=True)
+        },
+        'ram': {
+            'total_gb': round(memory.total / (1024**3), 2)
+        },
+        'disk': {
+            'total_gb': round(disk.total / (1024**3), 2)
+        },
+        'gpu': get_gpu_info()
+    }
+    return jsonify(specs), 200
 
 
 @app.errorhandler(401)
