@@ -29,10 +29,9 @@ The Agent exposes a secure SSE endpoint that the Master Dashboard (running on yo
          │  + SSE Stream         │  + SSE Stream         │  + SSE Stream
          ▼                       ▼                       ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Master Dashboard (Your Laptop)                │
-│              (Separate Repository - Future Task)                 │
-│         - UI for displaying live metrics from all agents         │
-│         - Configuration management (IPs and tokens)              │
+│                    Master Dashboard (Your Laptop)               │
+│         - UI for displaying live metrics from all agents        │
+│         - Configuration management (IPs and tokens)             │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
