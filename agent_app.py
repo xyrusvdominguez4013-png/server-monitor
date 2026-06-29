@@ -11,9 +11,10 @@ Security: All endpoints require Bearer token authentication via API_TOKEN.
 import os
 import time
 import uuid
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, jsonify, request, make_response
 from dotenv import load_dotenv
 import psutil
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -93,9 +94,13 @@ def verify_authorization():
     Expects header: Authorization: Bearer <API_TOKEN>
     Returns 401 Unauthorized if token is missing or invalid.
     """
-    # Skip authorization for OPTIONS requests (CORS preflight)
+    # Handle CORS preflight explicitly
     if request.method == 'OPTIONS':
-        return None
+        res = make_response('', 204)
+        res.headers['Access-Control-Allow-Origin'] = '*'
+        res.headers['Access-Control-Allow-Methods'] = '*'
+        res.headers['Access-Control-Allow-Headers'] = '*'
+        return res
 
     auth_header = request.headers.get('Authorization')
 
@@ -116,7 +121,15 @@ def verify_authorization():
     return None
 
 
-@app.route('/stream', methods=['GET'])
+@app.after_request
+def add_cors_headers(response):
+    """Add CORS headers to all responses."""
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = '*'
+    return response
+
+@app.route('/stream', methods=['GET', 'OPTIONS'])
 def stream_metrics():
     """
     Server-Sent Events endpoint that streams real-time system metrics.
@@ -168,7 +181,7 @@ def stream_metrics():
                 }
 
                 # Format as SSE: "data: {json}\n\n"
-                yield f"data: {metrics}\n\n"
+                yield f"data: {json.dumps(metrics)}\n\n"
 
                 # Wait 2 seconds before next reading
                 time.sleep(2)
@@ -194,7 +207,7 @@ def stream_metrics():
     )
 
 
-@app.route('/health', methods=['GET'])
+@app.route('/health', methods=['GET', 'OPTIONS'])
 def health_check():
     """
     Health check endpoint for verifying the agent is running.
