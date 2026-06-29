@@ -95,9 +95,30 @@ if ! check_command "python3"; then
 fi
 
 if ! check_command "pip3"; then
-    print_error "pip3 is required but not found."
-    print_info "Please install pip3 and try again."
-    exit 1
+    print_warning "pip3 is required but not found. Attempting automatic installation..."
+    if command -v apt-get &> /dev/null; then
+        print_info "Detected Debian/Ubuntu system. Installing python3-pip..."
+        sudo apt-get update && sudo apt-get install -y python3-pip
+    elif command -v yum &> /dev/null; then
+        print_info "Detected RedHat/CentOS system. Installing python3-pip..."
+        sudo yum install -y python3-pip
+    elif command -v dnf &> /dev/null; then
+        print_info "Detected Fedora system. Installing python3-pip..."
+        sudo dnf install -y python3-pip
+    elif command -v pacman &> /dev/null; then
+        print_info "Detected Arch system. Installing python-pip..."
+        sudo pacman -S --noconfirm python-pip
+    else
+        print_info "Trying fallback ensurepip..."
+        python3 -m ensurepip --upgrade
+    fi
+    
+    if ! command -v pip3 &> /dev/null; then
+        print_error "Failed to automatically install pip3."
+        print_info "Please install pip3 manually and try again."
+        exit 1
+    fi
+    print_success "pip3 installed successfully!"
 fi
 
 print_success "Python 3 and pip3 are available."
