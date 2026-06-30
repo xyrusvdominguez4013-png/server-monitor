@@ -141,6 +141,7 @@ def stream_metrics():
     - Memory stats (total, used, available, percent)
     - Disk stats (total, used, free, percent)
     - Network speed (MB/s sent and received)
+    - Server uptime in seconds
 
     Handles client disconnects gracefully without crashing the server.
     """
@@ -173,12 +174,17 @@ def stream_metrics():
                 # Gather Network speed metrics
                 network_stats = network_monitor.get_speed()
 
+                # Calculate server uptime in seconds
+                boot_time = psutil.boot_time()
+                uptime_seconds = time.time() - boot_time
+
                 # Compile all metrics into a single payload
                 metrics = {
                     'cpu': cpu_percent,
                     'ram': memory_stats,
                     'disk': disk_stats,
                     'network': network_stats,
+                    'uptime': round(uptime_seconds, 2),
                     'timestamp': time.time()
                 }
 
