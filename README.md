@@ -34,7 +34,7 @@ The monitoring system follows a distributed agent-master architecture:
          │  + SSE Stream         │  + SSE Stream         │  + SSE Stream
          ▼                       ▼                       ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Master Dashboard (Your Laptop)               │
+│                        Master Dashboard                         │
 │         - UI for displaying live metrics from all agents        │
 │         - Configuration management (IPs and tokens)             │
 └─────────────────────────────────────────────────────────────────┘
