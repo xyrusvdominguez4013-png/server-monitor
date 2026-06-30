@@ -10,10 +10,15 @@ This repository contains the Agent application that runs on remote Linux servers
 - **Memory (RAM)** - Total, used, available memory and usage percentage
 - **Disk Usage** - Root partition statistics (total, used, free, percent)
 - **Network Speed** - Real-time upload/download speeds in MB/s
+- **Server Uptime** - Time elapsed since last boot in seconds
 
 The Agent exposes a secure SSE endpoint that the Master Dashboard (running on your laptop) connects to for live data visualization.
 
 ## Architecture
+
+### System Components
+
+The monitoring system follows a distributed agent-master architecture:
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
@@ -34,6 +39,22 @@ The Agent exposes a secure SSE endpoint that the Master Dashboard (running on yo
 │         - Configuration management (IPs and tokens)             │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### Data Flow
+
+1. **Metric Collection**: Each Agent continuously collects system metrics using `psutil`
+2. **SSE Streaming**: Metrics are formatted as JSON and streamed via Server-Sent Events every 2 seconds
+3. **Authentication**: All requests require Bearer token authentication
+4. **Dashboard Connection**: The Master Dashboard connects to multiple agents simultaneously
+5. **Real-time Display**: Live metrics are displayed and updated in the dashboard UI
+
+### Communication Protocol
+
+- **Protocol**: HTTP/1.1 with Server-Sent Events (SSE)
+- **Content Type**: `text/event-stream`
+- **Authentication**: Bearer token via `Authorization` header
+- **Update Frequency**: Every 2 seconds per agent
+- **Connection**: Persistent keep-alive connections
 
 ## Prerequisites
 
@@ -119,13 +140,41 @@ curl -H "Authorization: Bearer your_token_here" http://localhost:5000/stream
 ```
 
 **Response Format (SSE):**
-```
-data: {"cpu": 12.5, "ram": {"total_gb": 16.0, "used_gb": 8.2, ...}, ...}
 
-data: {"cpu": 15.3, "ram": {"total_gb": 16.0, "used_gb": 8.3, ...}, ...}
+Each SSE event contains a JSON object with the following structure:
+
+```json
+{
+  "cpu": 12.5,                    // CPU usage percentage
+  "ram": {                        // Memory statistics
+    "total_gb": 16.0,             // Total RAM in GB
+    "used_gb": 8.2,               // Used RAM in GB
+    "available_gb": 7.8,          // Available RAM in GB
+    "percent": 51.25              // RAM usage percentage
+  },
+  "disk": {                       // Disk statistics (root partition)
+    "total_gb": 500.0,            // Total disk space in GB
+    "used_gb": 125.5,             // Used disk space in GB
+    "free_gb": 374.5,             // Free disk space in GB
+    "percent": 25.1               // Disk usage percentage
+  },
+  "network": {                    // Network speed statistics
+    "sent_mb_s": 0.0523,          // Upload speed in MB/s
+    "recv_mb_s": 1.2341           // Download speed in MB/s
+  },
+  "uptime": 86400.52,             // Server uptime in seconds since last boot
+  "timestamp": 1699564823.123     // Unix timestamp of the metric collection
+}
 ```
 
-Metrics are emitted every 2 seconds.
+**Example SSE Stream Output:**
+```
+data: {"cpu": 12.5, "ram": {"total_gb": 16.0, "used_gb": 8.2, "available_gb": 7.8, "percent": 51.25}, "disk": {"total_gb": 500.0, "used_gb": 125.5, "free_gb": 374.5, "percent": 25.1}, "network": {"sent_mb_s": 0.0523, "recv_mb_s": 1.2341}, "uptime": 86400.52, "timestamp": 1699564823.123}
+
+data: {"cpu": 15.3, "ram": {"total_gb": 16.0, "used_gb": 8.3, "available_gb": 7.7, "percent": 51.88}, "disk": {"total_gb": 500.0, "used_gb": 125.5, "free_gb": 374.5, "percent": 25.1}, "network": {"sent_mb_s": 0.0412, "recv_mb_s": 0.9876}, "uptime": 86402.52, "timestamp": 1699564825.123}
+```
+
+Metrics are emitted every 2 seconds as long as the connection remains open.
 
 ### `/health` (GET)
 
