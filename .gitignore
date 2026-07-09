@@ -1,2 +1,5 @@
 # Build artifacts
 static/swagger.json
+
+# Environment
+.env
