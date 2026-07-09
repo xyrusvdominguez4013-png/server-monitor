@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Monitor - Inventory</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% if session.get('user') %}
+    <nav class="navbar">
+        <div class="nav-brand">📦 Agent Inventory</div>
+        <div class="nav-links">
+            <a href="{{ url_for('inventory') }}">Inventory</a>
+            {% if session['user']['role'] == 'manager' %}
+            <a href="{{ url_for('users') }}">Users</a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}">Logout ({{ session['user']['username'] }})</a>
+        </div>
+    </nav>
+    {% endif %}
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

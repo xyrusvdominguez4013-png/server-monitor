@@ -1,0 +1,191 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+    --bg-base:       #020408;
+    --bg-surface:    #0a0e17;
+    --bg-panel:      #111824;
+    --bg-elevated:   #172030;
+    
+    --border-dim:    rgba(59, 130, 246, 0.15);
+    --border-subtle: rgba(59, 130, 246, 0.3);
+    --border-normal: rgba(59, 130, 246, 0.5);
+    
+    --accent:        #00f0ff;
+    --accent-dim:    rgba(0, 240, 255, 0.15);
+    
+    --green:         #00ff9d;
+    --red:           #ff2a5f;
+    --red-dim:       rgba(255, 42, 95, 0.15);
+    
+    --text-1:        #e2e8f0;
+    --text-2:        #94a3b8;
+    --text-3:        #64748b;
+    
+    --font-ui:   'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+    font-family: var(--font-ui);
+    background-color: var(--bg-base);
+    color: var(--text-1);
+    min-height: 100vh;
+    margin: 0;
+    background-image:
+        linear-gradient(rgba(0,240,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,240,255,0.03) 1px, transparent 1px);
+    background-size: 30px 30px;
+}
+
+/* Navbar */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--bg-surface);
+    padding: 1rem 2rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+.nav-brand {
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--accent);
+}
+.nav-links a {
+    color: var(--text-2);
+    text-decoration: none;
+    margin-left: 1.5rem;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+.nav-links a:hover {
+    color: var(--accent);
+}
+
+/* Layout */
+.container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+/* Panels */
+.panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-dim);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1rem;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-2);
+    font-size: 0.875rem;
+}
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    color: var(--text-1);
+    font-family: var(--font-ui);
+    transition: all 0.2s;
+}
+.form-control:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-1);
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.btn:hover {
+    background: var(--border-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.btn-primary {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.btn-primary:hover {
+    background: var(--accent);
+    color: var(--bg-base);
+}
+.btn-danger {
+    background: var(--red-dim);
+    border-color: var(--red);
+    color: var(--red);
+}
+.btn-danger:hover {
+    background: var(--red);
+    color: var(--bg-base);
+}
+.btn-sm {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+/* Tables */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+.table th, .table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-dim);
+}
+.table th {
+    color: var(--text-2);
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.table tr:hover td {
+    background: var(--bg-elevated);
+}
+
+/* Login box */
+.login-box {
+    max-width: 400px;
+    margin: 10vh auto;
+}
+.text-center { text-align: center; }
+.error-msg {
+    background: var(--red-dim);
+    border: 1px solid var(--red);
+    color: #fff;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+/* Flex utilities */
+.d-flex { display: flex; }
+.justify-between { justify-content: space-between; }
+.align-center { align-items: center; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 1rem; }
+.mb-4 { margin-bottom: 1.5rem; }

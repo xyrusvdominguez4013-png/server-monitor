@@ -18,18 +18,40 @@ import uuid
 import socket
 import subprocess
 from datetime import datetime
-from flask import Flask, Response, jsonify, request, make_response
+from flask import Flask, Response, jsonify, request, make_response, render_template, redirect, url_for, session
 from flask_swagger_ui import get_swaggerui_blueprint
 from dotenv import load_dotenv
 import psutil
 import json
 import platform
-import subprocess
+import csv
+import threading
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'super_secret_agent_key_for_inventory')
+
+# CSV Database Setup
+USERS_CSV = 'users.csv'
+INVENTORY_CSV = 'inventory.csv'
+csv_lock = threading.Lock()
+
+def init_csv_dbs():
+    with csv_lock:
+        if not os.path.exists(USERS_CSV):
+            with open(USERS_CSV, mode='w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(['id', 'username', 'password', 'role'])
+                writer.writerow(['1', 'admin', 'admin123', 'manager'])
+        
+        if not os.path.exists(INVENTORY_CSV):
+            with open(INVENTORY_CSV, mode='w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(['id', 'name', 'quantity', 'description'])
+
+init_csv_dbs()
 
 # Configuration
 API_TOKEN = os.getenv('API_TOKEN')
@@ -286,8 +308,9 @@ def verify_authorization():
         res.headers['Access-Control-Allow-Headers'] = '*'
         return res
     
-    # Skip authorization for Swagger UI endpoints
-    if request.path.startswith('/swagger') or request.path.startswith('/static'):
+    # Skip authorization for Swagger UI and Web UI endpoints
+    ui_prefixes = ['/swagger', '/static', '/login', '/logout', '/inventory', '/users', '/']
+    if any(request.path == prefix or request.path.startswith(prefix + '/') for prefix in ui_prefixes) or request.path == '/':
         return None
 
     auth_header = request.headers.get('Authorization')
@@ -538,6 +561,164 @@ def unauthorized_error(error):
     """Custom handler for 401 Unauthorized errors."""
     return jsonify({'error': 'Unauthorized - Invalid or missing API token'}), 401
 
+
+# ------------------------------------------------------------------------------
+# WEB UI ROUTES (INVENTORY & USERS)
+# ------------------------------------------------------------------------------
+
+def get_all_users():
+    users = []
+    with csv_lock:
+        with open(USERS_CSV, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                users.append(row)
+    return users
+
+def get_all_items():
+    items = []
+    with csv_lock:
+        with open(INVENTORY_CSV, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                items.append(row)
+    return items
+
+def write_users(users):
+    with csv_lock:
+        with open(USERS_CSV, mode='w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=['id', 'username', 'password', 'role'])
+            writer.writeheader()
+            writer.writerows(users)
+
+def write_items(items):
+    with csv_lock:
+        with open(INVENTORY_CSV, mode='w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=['id', 'name', 'quantity', 'description'])
+            writer.writeheader()
+            writer.writerows(items)
+
+def check_login(username, password):
+    for u in get_all_users():
+        if u['username'] == username and u['password'] == password:
+            return u
+    return None
+
+@app.route('/', methods=['GET'])
+def index():
+    if 'user' in session:
+        return redirect(url_for('inventory'))
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = check_login(username, password)
+        if user:
+            session['user'] = user
+            audit_logger.log_access(username=username, module='Auth', action='Login')
+            return redirect(url_for('inventory'))
+        return render_template('login.html', error="Invalid credentials")
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    user = session.get('user', {}).get('username', 'anonymous')
+    session.pop('user', None)
+    audit_logger.log_access(username=user, module='Auth', action='Logout')
+    return redirect(url_for('login'))
+
+@app.route('/inventory', methods=['GET'])
+def inventory():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    items = get_all_items()
+    audit_logger.log_access(username=session['user']['username'], module='Inventory', action='Viewed inventory')
+    return render_template('inventory.html', user=session['user'], items=items)
+
+@app.route('/inventory/add', methods=['POST'])
+def add_item():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    name = request.form.get('name')
+    quantity = request.form.get('quantity')
+    description = request.form.get('description')
+    
+    items = get_all_items()
+    new_id = str(int(items[-1]['id']) + 1) if items else '1'
+    items.append({'id': new_id, 'name': name, 'quantity': quantity, 'description': description})
+    write_items(items)
+    
+    audit_logger.log_access(username=session['user']['username'], module='Inventory', action=f"Added item '{name}'")
+    return redirect(url_for('inventory'))
+
+@app.route('/inventory/edit', methods=['POST'])
+def edit_item():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    item_id = request.form.get('id')
+    name = request.form.get('name')
+    quantity = request.form.get('quantity')
+    description = request.form.get('description')
+    
+    items = get_all_items()
+    for item in items:
+        if item['id'] == item_id:
+            old_name = item['name']
+            item['name'] = name
+            item['quantity'] = quantity
+            item['description'] = description
+            audit_logger.log_access(username=session['user']['username'], module='Inventory', action=f"Edited item '{old_name}' (ID: {item_id})")
+            break
+    write_items(items)
+    return redirect(url_for('inventory'))
+
+@app.route('/inventory/delete', methods=['POST'])
+def delete_item():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    item_id = request.form.get('id')
+    
+    items = get_all_items()
+    items_to_keep = []
+    deleted_name = ""
+    for item in items:
+        if item['id'] == item_id:
+            deleted_name = item['name']
+        else:
+            items_to_keep.append(item)
+            
+    if deleted_name:
+        write_items(items_to_keep)
+        audit_logger.log_access(username=session['user']['username'], module='Inventory', action=f"Deleted item '{deleted_name}' (ID: {item_id})")
+    
+    return redirect(url_for('inventory'))
+
+@app.route('/users', methods=['GET', 'POST'])
+def users():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    if session['user']['role'] != 'manager':
+        return "Access Denied: Managers only", 403
+        
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role', 'clerk') # Only manager can create clerks
+        
+        all_users = get_all_users()
+        new_id = str(int(all_users[-1]['id']) + 1) if all_users else '1'
+        all_users.append({'id': new_id, 'username': username, 'password': password, 'role': role})
+        write_users(all_users)
+        
+        audit_logger.log_access(username=session['user']['username'], module='Users', action=f"Created {role} account '{username}'")
+        return redirect(url_for('users'))
+        
+    all_users = get_all_users()
+    audit_logger.log_access(username=session['user']['username'], module='Users', action='Viewed users')
+    return render_template('users.html', user=session['user'], users=all_users)
 
 @app.errorhandler(404)
 def not_found_error(error):

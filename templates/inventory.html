@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel mb-4">
+    <div class="d-flex justify-between align-center mb-4">
+        <h2>Inventory Items</h2>
+        <!-- Add Item Form (Inline for simplicity) -->
+        <form method="POST" action="{{ url_for('add_item') }}" class="d-flex align-center gap-2">
+            <input type="text" name="name" class="form-control" placeholder="Item Name" required>
+            <input type="number" name="quantity" class="form-control" placeholder="Qty" style="width: 80px;" required>
+            <input type="text" name="description" class="form-control" placeholder="Description">
+            <button type="submit" class="btn btn-primary" style="white-space: nowrap;">+ Add Item</button>
+        </form>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Quantity</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.id }}</td>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.description }}</td>
+                    <td>
+                        <div class="d-flex gap-2">
+                            <!-- Edit Button (Toggles inline form via JS) -->
+                            <button class="btn btn-sm" onclick="toggleEdit('{{ item.id }}')">Edit</button>
+                            
+                            <!-- Delete Form -->
+                            <form method="POST" action="{{ url_for('delete_item') }}" onsubmit="return confirm('Are you sure you want to delete {{ item.name }}?');">
+                                <input type="hidden" name="id" value="{{ item.id }}">
+                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                <!-- Hidden Edit Row -->
+                <tr id="edit-row-{{ item.id }}" style="display: none; background: var(--bg-surface);">
+                    <td colspan="5">
+                        <form method="POST" action="{{ url_for('edit_item') }}" class="d-flex gap-2 align-center">
+                            <input type="hidden" name="id" value="{{ item.id }}">
+                            <input type="text" name="name" class="form-control" value="{{ item.name }}" required>
+                            <input type="number" name="quantity" class="form-control" value="{{ item.quantity }}" style="width: 80px;" required>
+                            <input type="text" name="description" class="form-control" value="{{ item.description }}">
+                            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                            <button type="button" class="btn btn-sm" onclick="toggleEdit('{{ item.id }}')">Cancel</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center" style="color: var(--text-3);">No items in inventory.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function toggleEdit(id) {
+        const row = document.getElementById('edit-row-' + id);
+        if (row.style.display === 'none') {
+            row.style.display = 'table-row';
+        } else {
+            row.style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}

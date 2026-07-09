@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel mb-4">
+    <div class="d-flex justify-between align-center mb-4">
+        <h2>User Management</h2>
+        
+        <!-- Add Clerk Form -->
+        <form method="POST" action="{{ url_for('users') }}" class="d-flex align-center gap-2">
+            <input type="text" name="username" class="form-control" placeholder="New Username" required>
+            <input type="password" name="password" class="form-control" placeholder="Password" required>
+            <!-- Hidden input forces 'clerk' role -->
+            <input type="hidden" name="role" value="clerk">
+            <button type="submit" class="btn btn-primary" style="white-space: nowrap;">+ Create Clerk</button>
+        </form>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u.id }}</td>
+                    <td>{{ u.username }}</td>
+                    <td>
+                        {% if u.role == 'manager' %}
+                        <span style="color: var(--accent); font-weight: 600;">{{ u.role|title }}</span>
+                        {% else %}
+                        <span style="color: var(--text-2);">{{ u.role|title }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
