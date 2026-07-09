@@ -1,5 +1,6 @@
 # Build artifacts
-static/swagger.json
+__pycache__/
+*.pyc
 
 # Environment
 .env

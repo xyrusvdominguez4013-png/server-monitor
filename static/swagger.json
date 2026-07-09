@@ -1,0 +1,93 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Server Monitoring Agent API",
+    "description": "API for the distributed Server Monitoring Agent to stream metrics and provide audit logs.",
+    "version": "1.0.0"
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/status": {
+      "get": {
+        "summary": "Check agent status",
+        "description": "Returns basic status and uptime of the agent.",
+        "responses": {
+          "200": {
+            "description": "Agent is online"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/stream": {
+      "get": {
+        "summary": "Stream metrics (SSE)",
+        "description": "Establishes a Server-Sent Events connection streaming real-time hardware metrics.",
+        "responses": {
+          "200": {
+            "description": "SSE Connection established"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/specs": {
+      "get": {
+        "summary": "Get static hardware specifications",
+        "description": "Returns static hardware specifications such as hostname, OS, CPU model, etc.",
+        "responses": {
+          "200": {
+            "description": "Hardware specifications returned successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/audit-logs": {
+      "get": {
+        "summary": "Get recent audit logs",
+        "description": "Returns the most recent user access logs maintained in memory.",
+        "responses": {
+          "200": {
+            "description": "Audit logs returned successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/audit-logs/clear": {
+      "post": {
+        "summary": "Clear audit logs",
+        "description": "Clears the in-memory audit logs.",
+        "responses": {
+          "200": {
+            "description": "Audit logs cleared successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    }
+  }
+}
