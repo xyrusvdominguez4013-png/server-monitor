@@ -72,22 +72,22 @@ flowchart TD
     end
 
     %% Connections - Users to Dashboard
-    U_Admin <-->|Views Global Logs & Metrics| Dash_UI
-    Dash_UI <-->|Fetches combined data| Dash_App
+    U_Admin <-->|"Views Global Logs & Metrics"| Dash_UI
+    Dash_UI <-->|"Fetches combined data"| Dash_App
     
     %% Connections - Users to Agent Web UI
-    U_Manager & U_Clerk <-->|HTTP GET/POST\n(Inventory CRUD, Manage Users)| WebUI
+    U_Manager & U_Clerk <-->|"HTTP GET/POST<br>(Inventory CRUD, Manage Users)"| WebUI
     WebUI <--> DB_Users & DB_Inventory
     
     %% Connections - Dashboard to Agent
-    Dash_App == "HTTP Server-Sent Events (SSE)\nBearer Token Auth" ==> SSE
-    Dash_App == "HTTP GET (Polling)\nBearer Token Auth" ==> REST
+    Dash_App == "HTTP Server-Sent Events (SSE)<br>Bearer Token Auth" ==> SSE
+    Dash_App == "HTTP GET (Polling)<br>Bearer Token Auth" ==> REST
     
     %% Internal Agent Connections
-    SysMetrics -->|Provides live metrics| SSE
-    WebUI -->|Triggers UI action logs| AuthLogger
-    REST -->|Fetches logged actions| AuthLogger
-    SSE -->|Triggers view logs| AuthLogger
+    SysMetrics -->|"Provides live metrics"| SSE
+    WebUI -->|"Triggers UI action logs"| AuthLogger
+    REST -->|"Fetches logged actions"| AuthLogger
+    SSE -->|"Triggers view logs"| AuthLogger
 ```
 
 ### Data Flow
