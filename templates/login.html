@@ -1,23 +1,32 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="login-box panel">
-    <h2 class="text-center mb-4" style="color: var(--accent);">Inventory Login</h2>
-    
-    {% if error %}
-    <div class="error-msg text-center">{{ error }}</div>
-    {% endif %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 80vh;">
+    <div class="login-box panel" style="width: 100%; max-width: 420px; padding: 3rem 2rem; background: rgba(17, 24, 36, 0.7); backdrop-filter: blur(12px); border: 1px solid var(--border-subtle); box-shadow: 0 8px 32px rgba(0, 240, 255, 0.1); text-align: center;">
+        
+        <div style="margin-bottom: 2rem;">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">📦</div>
+            <h2 style="color: var(--text-1); font-weight: 700; font-size: 1.5rem; margin-bottom: 0.25rem;">Inventory System</h2>
+            <p style="color: var(--text-3); font-size: 0.875rem;">Server Monitor Agent Portal</p>
+        </div>
+        
+        {% if error %}
+        <div class="error-msg" style="background: var(--red-dim); border-left: 4px solid var(--red); color: var(--text-1); padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.875rem; text-align: left;">
+            <strong style="color: var(--red);">Error:</strong> {{ error }}
+        </div>
+        {% endif %}
 
-    <form method="POST" action="{{ url_for('login') }}">
-        <div class="form-group">
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" class="form-control" required autocomplete="off">
-        </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" class="form-control" required>
-        </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Login</button>
-    </form>
+        <form method="POST" action="{{ url_for('login') }}" style="text-align: left;">
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="username" style="color: var(--text-2); font-weight: 500;">Username</label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="Enter your username" required autocomplete="off" style="margin-top: 0.5rem; padding: 0.875rem 1rem;">
+            </div>
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="password" style="color: var(--text-2); font-weight: 500;">Password</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required style="margin-top: 0.5rem; padding: 0.875rem 1rem;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.875rem; font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 6px;">Sign In</button>
+        </form>
+    </div>
 </div>
 {% endblock %}
