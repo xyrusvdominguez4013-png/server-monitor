@@ -6,12 +6,20 @@ This application runs on remote servers and streams real-time hardware metrics
 (CPU, RAM, Disk, Network) via Server-Sent Events (SSE) to a Master Dashboard.
 
 Security: All endpoints require Bearer token authentication via API_TOKEN.
+
+Audit Trail: Records and monitors user access with detailed logging including
+date/time, client IP, MAC address, username, device info, module accessed,
+action performed, and server status.
 """
 
 import os
 import time
 import uuid
+import socket
+import subprocess
+from datetime import datetime
 from flask import Flask, Response, jsonify, request
+from flask_swagger_ui import get_swaggerui_blueprint
 from dotenv import load_dotenv
 import psutil
 
@@ -28,6 +36,176 @@ if not API_TOKEN:
         "API_TOKEN not found in environment variables. "
         "Please ensure .env file exists with API_TOKEN set."
     )
+
+# Swagger UI Configuration
+SWAGGER_URL = '/swagger'
+API_URL = '/static/swagger.json'
+
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={
+        'app_name': "Server Monitoring Agent API",
+        'docExpansion': 'list',
+        'defaultModelsExpandDepth': 2
+    }
+)
+
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+
+
+class AuditTrailLogger:
+    """
+    Records and maintains an audit trail of user activities.
+    Logs access information including IP, MAC, username, device info,
+    module accessed, action performed, and server status.
+    """
+
+    def __init__(self):
+        self.access_logs = []
+        self.max_logs = 1000  # Keep last 1000 entries in memory
+
+    def get_client_mac(self, ip_address):
+        """
+        Attempt to get the MAC address of a client IP on the local network.
+        Returns None if not available (e.g., remote connections).
+        """
+        try:
+            # Try ARP lookup for local network
+            result = subprocess.run(
+                ['arp', '-n', ip_address],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if result.returncode == 0:
+                output = result.stdout
+                # Look for MAC address pattern in arp output
+                for line in output.split('\n'):
+                    if ip_address in line:
+                        parts = line.split()
+                        for part in parts:
+                            if len(part) == 17 and part.count(':') == 5:
+                                return part
+        except Exception:
+            pass
+        return None
+
+    def get_device_info(self, user_agent):
+        """
+        Extract device/browser information from User-Agent string.
+        """
+        if not user_agent:
+            return {'browser': 'Unknown', 'os': 'Unknown', 'device': 'Unknown'}
+
+        user_agent_lower = user_agent.lower()
+
+        # Detect browser
+        browser = 'Unknown'
+        if 'firefox' in user_agent_lower:
+            browser = 'Firefox'
+        elif 'chrome' in user_agent_lower and 'edg' not in user_agent_lower:
+            browser = 'Chrome'
+        elif 'safari' in user_agent_lower and 'chrome' not in user_agent_lower:
+            browser = 'Safari'
+        elif 'edg' in user_agent_lower:
+            browser = 'Edge'
+        elif 'msie' in user_agent_lower or 'trident' in user_agent_lower:
+            browser = 'Internet Explorer'
+        elif 'curl' in user_agent_lower:
+            browser = 'curl'
+        elif 'python' in user_agent_lower:
+            browser = 'Python Requests'
+
+        # Detect OS
+        os_name = 'Unknown'
+        if 'windows' in user_agent_lower:
+            os_name = 'Windows'
+        elif 'mac os' in user_agent_lower or 'macintosh' in user_agent_lower:
+            os_name = 'macOS'
+        elif 'linux' in user_agent_lower:
+            os_name = 'Linux'
+        elif 'android' in user_agent_lower:
+            os_name = 'Android'
+        elif 'iphone' in user_agent_lower or 'ipad' in user_agent_lower:
+            os_name = 'iOS'
+
+        # Detect device type
+        device = 'Desktop'
+        if 'mobile' in user_agent_lower or 'android' in user_agent_lower or 'iphone' in user_agent_lower:
+            device = 'Mobile'
+        elif 'tablet' in user_agent_lower or 'ipad' in user_agent_lower:
+            device = 'Tablet'
+
+        return {
+            'browser': browser,
+            'os': os_name,
+            'device': device,
+            'user_agent': user_agent[:200]  # Truncate long user agents
+        }
+
+    def log_access(self, username=None, module=None, action=None, extra_data=None):
+        """
+        Log an access event with all required audit trail information.
+        """
+        client_ip = request.remote_addr or 'Unknown'
+        user_agent = request.headers.get('User-Agent', '')
+        auth_header = request.headers.get('Authorization', '')
+
+        # Extract username from auth header if available
+        if not username:
+            if auth_header.startswith('Bearer '):
+                token = auth_header[7:]
+                # Use first 8 chars of token as pseudo-username for tracking
+                username = f"token_{token[:8]}" if token else 'anonymous'
+
+        timestamp = datetime.now().isoformat()
+
+        # Get MAC address (only works for local network)
+        mac_address = self.get_client_mac(client_ip)
+
+        # Get device/browser info
+        device_info = self.get_device_info(user_agent)
+
+        # Determine server status
+        server_status = 'Online'
+
+        # Build audit log entry
+        log_entry = {
+            'timestamp': timestamp,
+            'client_ip': client_ip,
+            'client_mac': mac_address if mac_address else 'N/A (remote)',
+            'username': username or 'anonymous',
+            'device_info': device_info,
+            'module_accessed': module or request.endpoint or 'Unknown',
+            'action_performed': action or 'View',
+            'server_status': server_status,
+            'request_method': request.method,
+            'request_path': request.path
+        }
+
+        # Add any extra data passed
+        if extra_data:
+            log_entry['extra_data'] = extra_data
+
+        # Store in memory (circular buffer)
+        self.access_logs.append(log_entry)
+        if len(self.access_logs) > self.max_logs:
+            self.access_logs.pop(0)
+
+        return log_entry
+
+    def get_recent_logs(self, limit=100):
+        """Return the most recent audit logs."""
+        return self.access_logs[-limit:]
+
+    def get_server_status(self):
+        """Get current server status."""
+        return 'Online'
+
+
+# Global audit trail logger instance
+audit_logger = AuditTrailLogger()
 
 
 class NetworkSpeedMonitor:
@@ -96,6 +274,10 @@ def verify_authorization():
     # Skip authorization for OPTIONS requests (CORS preflight)
     if request.method == 'OPTIONS':
         return None
+    
+    # Skip authorization for Swagger UI endpoints
+    if request.path.startswith('/swagger') or request.path.startswith('/static'):
+        return None
 
     auth_header = request.headers.get('Authorization')
 
@@ -128,7 +310,17 @@ def stream_metrics():
     - Network speed (MB/s sent and received)
 
     Handles client disconnects gracefully without crashing the server.
+    
+    Audit Trail: Logs access with timestamp, client IP, MAC address, username,
+    device info, module accessed, action performed, and server status.
     """
+
+    # Log initial access to the stream endpoint
+    audit_logger.log_access(
+        module='stream',
+        action='View',
+        extra_data={'endpoint_type': 'SSE_stream'}
+    )
 
     def generate_metrics():
         """Generator function that yields SSE-formatted metrics."""
@@ -164,7 +356,8 @@ def stream_metrics():
                     'ram': memory_stats,
                     'disk': disk_stats,
                     'network': network_stats,
-                    'timestamp': time.time()
+                    'timestamp': time.time(),
+                    'server_status': audit_logger.get_server_status()
                 }
 
                 # Format as SSE: "data: {json}\n\n"
@@ -176,6 +369,12 @@ def stream_metrics():
         except (GeneratorExit, BrokenPipeError, ConnectionResetError):
             # Client disconnected - exit gracefully
             print("[INFO] Client disconnected from /stream endpoint")
+            # Log disconnection
+            audit_logger.log_access(
+                module='stream',
+                action='Disconnect',
+                extra_data={'endpoint_type': 'SSE_stream'}
+            )
             return
         except Exception as e:
             # Log unexpected errors but don't crash
@@ -199,10 +398,56 @@ def health_check():
     """
     Health check endpoint for verifying the agent is running.
     Requires valid authentication.
+    
+    Audit Trail: Logs access with timestamp, client IP, MAC address, username,
+    device info, module accessed, action performed, and server status.
     """
+    # Log access to health endpoint
+    audit_logger.log_access(
+        module='health',
+        action='View',
+        extra_data={'endpoint_type': 'health_check'}
+    )
+    
     return jsonify({
         'status': 'healthy',
-        'service': 'server-monitoring-agent'
+        'service': 'server-monitoring-agent',
+        'server_status': audit_logger.get_server_status()
+    }), 200
+
+
+@app.route('/audit-logs', methods=['GET'])
+def get_audit_logs():
+    """
+    Endpoint to retrieve recent audit trail logs.
+    Returns the most recent access logs for the dashboard.
+    
+    Query Parameters:
+    - limit: Number of logs to return (default: 100, max: 1000)
+    
+    Audit Trail: Logs access to this endpoint itself.
+    """
+    # Log access to audit logs endpoint
+    audit_logger.log_access(
+        module='audit-logs',
+        action='View',
+        extra_data={'endpoint_type': 'audit_log_retrieval'}
+    )
+    
+    # Get limit from query params
+    try:
+        limit = int(request.args.get('limit', 100))
+        limit = min(limit, 1000)  # Cap at 1000
+        limit = max(limit, 1)     # Minimum 1
+    except ValueError:
+        limit = 100
+    
+    logs = audit_logger.get_recent_logs(limit)
+    
+    return jsonify({
+        'count': len(logs),
+        'limit': limit,
+        'logs': logs
     }), 200
 
 
@@ -232,11 +477,23 @@ if __name__ == '__main__':
     print(f"[INFO] Starting Server Monitoring Agent on {host}:{port}")
     print(f"[INFO] SSE Endpoint: http://{host}:{port}/stream")
     print(f"[INFO] Health Check: http://{host}:{port}/health")
+    print(f"[INFO] Audit Logs: http://{host}:{port}/audit-logs")
+    print(f"[INFO] Swagger UI: http://{host}:{port}/swagger")
     print(f"[INFO] API Token: {API_TOKEN}")
     print("")
     print("═══════════════════════════════════════════════════════════")
     print(f"  YOUR API TOKEN: {API_TOKEN}")
     print("═══════════════════════════════════════════════════════════")
+    print("")
+    print("Audit Trail Features:")
+    print("  - Date and Time of Access")
+    print("  - Client IP Address")
+    print("  - Client MAC Address (local network only)")
+    print("  - Username (from token)")
+    print("  - Device/Browser Information")
+    print("  - Menu/Module Accessed")
+    print("  - Action Performed (View, Disconnect, etc.)")
+    print("  - Server Status (Online/Offline)")
     print("")
 
     # Run Flask app (debug=False for production)

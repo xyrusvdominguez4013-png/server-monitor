@@ -13,6 +13,19 @@ This repository contains the Agent application that runs on remote Linux servers
 
 The Agent exposes a secure SSE endpoint that the Master Dashboard (running on your laptop) connects to for live data visualization.
 
+### Audit Trail Feature
+
+The system now includes comprehensive audit trail functionality that records and monitors user access with the following information:
+
+- **Date and Time of Access** - ISO format timestamp of each access event
+- **Client IP Address** - IP address of the connecting client
+- **Client MAC Address** - MAC address (for local network connections via ARP lookup)
+- **Username** - Derived from authentication token or anonymous
+- **Device/Browser Information** - Browser type, OS, and device type extracted from User-Agent
+- **Menu/Module Accessed** - Which API endpoint was accessed
+- **Action Performed** - Type of action (View, Disconnect, etc.)
+- **Server Status** - Current online/offline status of the server
+
 ## Architecture
 
 ```
@@ -114,6 +127,8 @@ Server-Sent Events endpoint that streams real-time metrics.
 
 **Authentication Required:** Yes (Bearer token)
 
+**Audit Trail:** Logs access with timestamp, client IP, MAC address, username, device info, module accessed, action performed, and server status.
+
 **Request Example:**
 ```bash
 curl -H "Authorization: Bearer your_token_here" http://localhost:5000/stream
@@ -121,9 +136,9 @@ curl -H "Authorization: Bearer your_token_here" http://localhost:5000/stream
 
 **Response Format (SSE):**
 ```
-data: {"cpu": 12.5, "ram": {"total_gb": 16.0, "used_gb": 8.2, ...}, ...}
+data: {"cpu": 12.5, "ram": {"total_gb": 16.0, "used_gb": 8.2, ...}, "server_status": "Online", ...}
 
-data: {"cpu": 15.3, "ram": {"total_gb": 16.0, "used_gb": 8.3, ...}, ...}
+data: {"cpu": 15.3, "ram": {"total_gb": 16.0, "used_gb": 8.3, ...}, "server_status": "Online", ...}
 ```
 
 Metrics are emitted every 2 seconds.
@@ -134,13 +149,103 @@ Health check endpoint to verify the agent is running.
 
 **Authentication Required:** Yes (Bearer token)
 
+**Audit Trail:** Logs access with full audit trail information.
+
 **Response:**
 ```json
 {
   "status": "healthy",
-  "service": "server-monitoring-agent"
+  "service": "server-monitoring-agent",
+  "server_status": "Online"
 }
 ```
+
+### `/audit-logs` (GET)
+
+Retrieve recent audit trail logs for dashboard display.
+
+**Authentication Required:** Yes (Bearer token)
+
+**Query Parameters:**
+- `limit` (optional): Number of logs to return (default: 100, max: 1000)
+
+**Audit Trail:** Logs access to this endpoint itself.
+
+**Request Example:**
+```bash
+curl -H "Authorization: Bearer your_token_here" "http://localhost:5000/audit-logs?limit=50"
+```
+
+**Response:**
+```json
+{
+  "count": 5,
+  "limit": 50,
+  "logs": [
+    {
+      "timestamp": "2024-01-15T10:30:45.123456",
+      "client_ip": "192.168.1.100",
+      "client_mac": "00:1A:2B:3C:4D:5E",
+      "username": "token_a1b2c3d4",
+      "device_info": {
+        "browser": "Chrome",
+        "os": "Linux",
+        "device": "Desktop",
+        "user_agent": "Mozilla/5.0..."
+      },
+      "module_accessed": "stream",
+      "action_performed": "View",
+      "server_status": "Online",
+      "request_method": "GET",
+      "request_path": "/stream"
+    }
+  ]
+}
+```
+
+### `/swagger` (GET)
+
+Interactive API documentation powered by Swagger UI. Allows you to explore and test all API endpoints directly from your browser.
+
+**Authentication Required:** No (public endpoint for documentation)
+
+**Features:**
+- Interactive API explorer
+- Try out endpoints directly from the browser
+- View request/response schemas
+- Authentication support via "Authorize" button
+
+**Access:**
+```
+http://localhost:5000/swagger/
+```
+
+**Note:** While the Swagger UI itself is public, actual API calls to protected endpoints still require valid Bearer token authentication.
+
+### `/static/swagger.json` (GET)
+
+Raw OpenAPI 3.0 specification in JSON format.
+
+**Authentication Required:** No (public endpoint for documentation)
+
+**Usage:**
+- Used internally by Swagger UI
+- Can be imported into API testing tools (Postman, Insomnia)
+- Machine-readable API documentation
+
+## API Documentation
+
+The server includes built-in interactive API documentation via Swagger UI:
+
+- **Swagger UI:** `http://localhost:5000/swagger/`
+- **OpenAPI Spec:** `http://localhost:5000/static/swagger.json`
+
+The Swagger documentation includes:
+- Complete endpoint descriptions
+- Request/response schemas
+- Authentication requirements
+- Audit trail information for each endpoint
+- Try-it-out functionality for testing APIs
 
 ## Security
 
