@@ -27,30 +27,67 @@ The system now includes comprehensive audit trail functionality that records and
 - **Action Performed** - Type of action (View, Disconnect, etc.)
 - **Server Status** - Current online/offline status of the server
 
-## Architecture
+## Architecture & Network Design
 
-### System Components
+### System Architecture
 
-The monitoring system follows a distributed agent-master architecture:
+The server-monitor operates both as an API provider (for the Global Dashboard) and a standalone Web Application (for the Inventory System). Here is how the components communicate across the network:
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Agent Server  │     │   Agent Server  │     │   Agent Server  │
-│   (Remote #1)   │     │   (Remote #2)   │     │   (Remote #3)   │
-│                 │     │                 │     │                 │
-│  - Flask App    │     │  - Flask App    │     │  - Flask App    │
-│  - psutil       │     │  - psutil       │     │  - psutil       │
-│  - SSE Stream   │     │  - SSE Stream   │     │  - SSE Stream   │
-└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-         │                       │                       │
-         │  Bearer Token Auth    │  Bearer Token Auth    │  Bearer Token Auth
-         │  + SSE Stream         │  + SSE Stream         │  + SSE Stream
-         ▼                       ▼                       ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        Master Dashboard                         │
-│         - UI for displaying live metrics from all agents        │
-│         - Configuration management (IPs and tokens)             │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    %% Define Styles
+    classDef client fill:#0a0e17,stroke:#00f0ff,stroke-width:2px,color:#fff
+    classDef agent fill:#111824,stroke:#00ff9d,stroke-width:2px,color:#fff
+    classDef dash fill:#172030,stroke:#ffb700,stroke-width:2px,color:#fff
+    classDef db fill:#020408,stroke:#e2e8f0,stroke-width:1px,color:#fff,stroke-dasharray: 5 5
+
+    %% Nodes
+    subgraph Users ["Client Endpoints (Web Browsers)"]
+        U_Admin["Dashboard Admin"]:::client
+        U_Manager["Inventory Manager"]:::client
+        U_Clerk["Inventory Clerk"]:::client
+    end
+
+    subgraph Master ["Global Dashboard Server (Laptop/Master)"]
+        Dash_App["Flask Dashboard App"]:::dash
+        Dash_UI["Dashboard Web UI"]:::dash
+    end
+
+    subgraph Agent ["Server-Monitor Agent (Remote Server/VM)"]
+        direction TB
+        Agent_Flask["Agent Flask Application (port 5000)"]:::agent
+        
+        subgraph Services ["Agent Services"]
+            SSE["SSE Stream (/stream)"]:::agent
+            REST["REST APIs (/health, /audit-logs)"]:::agent
+            WebUI["Inventory Web UI (/login, /inventory)"]:::agent
+            AuthLogger["Audit Trail Logger"]:::agent
+            SysMetrics["psutil (Hardware Metrics)"]:::agent
+        end
+        
+        subgraph Storage ["Local CSV Databases"]
+            DB_Users[("users.csv")]:::db
+            DB_Inventory[("inventory.csv")]:::db
+        end
+    end
+
+    %% Connections - Users to Dashboard
+    U_Admin <-->|Views Global Logs & Metrics| Dash_UI
+    Dash_UI <-->|Fetches combined data| Dash_App
+    
+    %% Connections - Users to Agent Web UI
+    U_Manager & U_Clerk <-->|HTTP GET/POST\n(Inventory CRUD, Manage Users)| WebUI
+    WebUI <--> DB_Users & DB_Inventory
+    
+    %% Connections - Dashboard to Agent
+    Dash_App == "HTTP Server-Sent Events (SSE)\nBearer Token Auth" ==> SSE
+    Dash_App == "HTTP GET (Polling)\nBearer Token Auth" ==> REST
+    
+    %% Internal Agent Connections
+    SysMetrics -->|Provides live metrics| SSE
+    WebUI -->|Triggers UI action logs| AuthLogger
+    REST -->|Fetches logged actions| AuthLogger
+    SSE -->|Triggers view logs| AuthLogger
 ```
 
 ### Data Flow
