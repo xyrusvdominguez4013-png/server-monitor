@@ -85,17 +85,23 @@ git clone <repository-url>
 cd <repository-directory>
 ```
 
-### 2. Make the Installation Script Executable
+### 2. Run the Installation Script (Recommended)
 
+The easiest way to configure the agent is to run the setup script.
+
+**Linux / macOS:**
 ```bash
 chmod +x install_shell.sh
-```
-
-### 3. Run the Installation Script
-
-```bash
 ./install_shell.sh
 ```
+
+**Windows:**
+For native Windows setup, open **PowerShell** and run the included PowerShell script:
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\install.ps1
+```
+*(Alternatively, you can run `bash install_shell.sh` if using Git Bash or WSL).*
 
 The script will automatically:
 1. Check for Python 3 and pip3 availability

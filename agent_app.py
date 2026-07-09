@@ -155,9 +155,13 @@ class AuditTrailLogger:
         user_agent = request.headers.get('User-Agent', '')
         auth_header = request.headers.get('Authorization', '')
 
-        # Extract username from auth header if available
+        dashboard_user = request.headers.get('X-Dashboard-User')
+        
+        # Extract username from auth header if available and no dashboard user is provided
         if not username:
-            if auth_header.startswith('Bearer '):
+            if dashboard_user and dashboard_user != 'anonymous':
+                username = dashboard_user
+            elif auth_header.startswith('Bearer '):
                 token = auth_header[7:]
                 # Use first 8 chars of token as pseudo-username for tracking
                 username = f"token_{token[:8]}" if token else 'anonymous'
